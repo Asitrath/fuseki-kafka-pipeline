@@ -1,2 +1,12 @@
-# fuseki-kafka-pipeline
-A Dockerized pipeline that connects Apache Jena Fuseki with Apache Kafka to enable real-time RDF data ingestion, processing, and querying.
+# Fuseki-Kafka Pipeline
+
+This repository sets up a local pipeline that connects Apache Jena Fuseki (SPARQL endpoint) with Apache Kafka using Docker Compose.
+
+## 🔧 Requirements
+- Docker
+- Docker Compose
+
+## ▶️ How to Run
+
+```bash
+docker compose up --build
