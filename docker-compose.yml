@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    ports:
+      - "9092:9092"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+
+  fuseki:
+    image: stain/jena-fuseki
+    ports:
+      - "3030:3030"
+    volumes:
+      - ./fuseki/config.ttl:/fuseki/config.ttl
+      - ./fuseki/shiro.ini:/fuseki/shiro.ini
+      - ./fuseki/data:/fuseki/databases
+    command: ["/jena-fuseki/fuseki-server", "--config", "/fuseki/config.ttl", "--update"]
+
+
+  producer:
+    build:
+      context: ./producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - TOPIC=input-topic
+
+  middleware:
+    build:
+      context: ./middleware
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - INPUT_TOPIC=input-topic
+      - OUTPUT_TOPIC=output-topic
+
+  consumer:
+    build:
+      context: ./consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      fuseki:
+        condition: service_started
+    environment:
+      - KAFKA_BROKER=kafka:9092
+      - TOPIC=output-topic
+      - FUSEKI_URL=http://fuseki:3030/ds/update
+
